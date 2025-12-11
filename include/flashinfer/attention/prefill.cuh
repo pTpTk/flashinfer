@@ -1578,6 +1578,7 @@ __device__ __forceinline__ void SinglePrefillWithKVCacheDevice(
 template <typename KTraits, typename Params>
 __global__ __launch_bounds__(KTraits::NUM_THREADS) void SinglePrefillWithKVCacheKernel(
     const __grid_constant__ Params params) {
+  printf("hello world");
   extern __shared__ uint8_t smem[];
   auto& smem_storage = reinterpret_cast<typename KTraits::SharedStorage&>(smem);
   SinglePrefillWithKVCacheDevice<KTraits>(params, smem_storage);
