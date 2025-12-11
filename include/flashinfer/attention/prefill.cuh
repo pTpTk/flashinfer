@@ -1423,12 +1423,12 @@ __device__ __forceinline__ void SinglePrefillWithKVCacheDevice(
     uint32_t q_smem_offset_r = qo_smem.template get_permuted_offset<UPCAST_STRIDE_Q>(
         get_warp_idx_q<KTraits>(tid.y) * NUM_MMA_Q * 16 + lane_idx % 16, lane_idx / 16);
 
-    asm volatile ("mov.u64 %0, %%globaltimer;" : "=r"(start) :: "memory");
+    asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(start) :: "memory");
     load_q_global_smem<KTraits>(qo_packed_idx_base, qo_len, q_ptr_base, q_stride_n, q_stride_h,
                                 group_size, &qo_smem, tid);
     
     cp_async::commit_group();
-    asm volatile ("mov.u64 %0, %%globaltimer;" : "=r"(stop) :: "memory");
+    asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(stop) :: "memory");
 
     if constexpr (KTraits::POS_ENCODING_MODE == PosEncodingMode::kRoPELlama) {
       cp_async::wait_group<0>();
