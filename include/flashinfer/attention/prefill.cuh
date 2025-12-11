@@ -1335,6 +1335,8 @@ __device__ __forceinline__ void SinglePrefillWithKVCacheDevice(
     const uint32_t bx = blockIdx.x, const uint32_t chunk_idx = blockIdx.y,
     const uint32_t kv_head_idx = blockIdx.z, const uint32_t num_chunks = gridDim.y,
     const uint32_t num_kv_heads = gridDim.z) {
+  uint64_t start = 0;
+  uint64_t stop = 0;
   using DTypeQ = typename Params::DTypeQ;
 #if (__CUDA_ARCH__ < 800)
   if constexpr (std::is_same_v<DTypeQ, nv_bfloat16>) {
@@ -1421,14 +1423,12 @@ __device__ __forceinline__ void SinglePrefillWithKVCacheDevice(
     uint32_t q_smem_offset_r = qo_smem.template get_permuted_offset<UPCAST_STRIDE_Q>(
         get_warp_idx_q<KTraits>(tid.y) * NUM_MMA_Q * 16 + lane_idx % 16, lane_idx / 16);
 
-    uint start = 0;
-    uint stop = 0;
-    asm volatile ("mov.u32 %0, %%clock;" : "=r"(start) :: "memory");
+    asm volatile ("mov.u64 %0, %%globaltimer;" : "=r"(start) :: "memory");
     load_q_global_smem<KTraits>(qo_packed_idx_base, qo_len, q_ptr_base, q_stride_n, q_stride_h,
                                 group_size, &qo_smem, tid);
     
     cp_async::commit_group();
-    asm volatile ("mov.u32 %0, %%clock;" : "=r"(stop) :: "memory");
+    asm volatile ("mov.u64 %0, %%globaltimer;" : "=r"(stop) :: "memory");
 
     if constexpr (KTraits::POS_ENCODING_MODE == PosEncodingMode::kRoPELlama) {
       cp_async::wait_group<0>();
@@ -1582,9 +1582,9 @@ __device__ __forceinline__ void SinglePrefillWithKVCacheDevice(
   uint sm_id, warp_id;
   asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
   asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
-  printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), mem time = %u\n",
+  printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), mem start: %lu, mem time: %lu\n",
       sm_id, warp_id, blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z,
-      stop - start);
+      start, stop - start);
 }
 
 template <typename KTraits, typename Params>
