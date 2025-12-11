@@ -18,6 +18,8 @@ import pathlib
 
 import torch
 
+import os
+
 
 def write_if_different(path: pathlib.Path, content: str) -> None:
     if path.exists():
@@ -27,6 +29,11 @@ def write_if_different(path: pathlib.Path, content: str) -> None:
     else:
         path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
+        f.write(content)
+
+    os.makedirs('/workspace/tmp_sources', exist_ok=True)
+    file_name = '/workspace/tmp_sources/' + path.name
+    with open(file_name, "w") as f:
         f.write(content)
 
 
