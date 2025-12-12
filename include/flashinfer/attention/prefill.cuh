@@ -1256,8 +1256,8 @@ __device__ __forceinline__ void write_o_reg_gmem(
     typename KTraits::DTypeO* o_ptr_base, const uint32_t o_packed_idx_base,
     const uint32_t qo_upper_bound, const uint32_t o_stride_n, const uint32_t o_stride_h,
     const uint_fastdiv group_size, const dim3 tid = threadIdx) {
-  printf("here, sizeof(DTypeO) = %d\n", sizeof(DTypeO));
   using DTypeO = typename KTraits::DTypeO;
+  printf("here, sizeof(DTypeO) = %d\n", sizeof(DTypeO));
   constexpr uint32_t UPCAST_STRIDE_O = KTraits::UPCAST_STRIDE_O;
   const uint32_t warp_idx_x = get_warp_idx_q<KTraits>(tid.y);
   const uint32_t lane_idx = tid.x;
