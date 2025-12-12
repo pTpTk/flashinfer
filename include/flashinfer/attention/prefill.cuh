@@ -298,6 +298,19 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
         smem.template load_128b_async<fill_mode>(*smem_offset, *gptr, kv_idx < kv_len);
         *smem_offset = smem.template advance_offset_by_column<8>(*smem_offset, j);
         *gptr += 8 * upcast_size<DTypeKV>();
+
+        uint sm_id, warp_id, bidx, bidy, bidz;
+        asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+        asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+        asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+        asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+        asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+        if(produce_v)
+          printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load v 128b\n",
+            sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
+        else
+          printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load k 128b\n",
+            sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
       }
       kv_idx += NUM_WARPS * 4;
       *smem_offset =
@@ -453,6 +466,14 @@ __device__ __forceinline__ void load_q_global_smem(
                                                                        q_idx < qo_upper_bound);
           q_smem_offset_w = q_smem->template advance_offset_by_column<8>(q_smem_offset_w, mma_do);
           q_ptr += 8 * upcast_size<DTypeQ>();
+          uint sm_id, warp_id, bidx, bidy, bidz;
+          asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+          asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+          asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+          asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+          asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+          printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load q 128b\n",
+              sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
         }
         q_smem_offset_w =
             q_smem->template advance_offset_by_row<4, UPCAST_STRIDE_Q>(q_smem_offset_w) -
@@ -1291,6 +1312,15 @@ __device__ __forceinline__ void write_o_reg_gmem(
           for (uint32_t mma_do = 0; mma_do < KTraits::NUM_MMA_D_VO / 4; ++mma_do) {
             if (o_idx < qo_upper_bound) {
               o_smem->store_128b(o_smem_offset_w, o_ptr);
+
+              uint sm_id, warp_id, bidx, bidy, bidz;
+              asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+              asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+              asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+              asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+              asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+              printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), store o 128b\n",
+                  sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
             }
             o_ptr += 8 * upcast_size<DTypeO>();
             o_smem_offset_w = o_smem->template advance_offset_by_column<8>(o_smem_offset_w, mma_do);
