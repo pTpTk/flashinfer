@@ -319,6 +319,12 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
       *gptr += NUM_WARPS * 4 * stride_n - sizeof(DTypeKV) * NUM_MMA_D * upcast_size<DTypeKV>();
     }
     *smem_offset -= CTA_TILE_KV * UPCAST_STRIDE;
+    uint sm_id, warp_id, bidx, bidy, bidz;
+    asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+    asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+    asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+    asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+    asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
     if(produce_v)
       printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), end of v\n",
         sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
