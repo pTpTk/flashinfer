@@ -1265,6 +1265,15 @@ __device__ __forceinline__ void write_o_reg_gmem(
             *reinterpret_cast<float2*>(o_ptr_base + q * o_stride_n + r * o_stride_h + mma_d * 16 +
                                        8 + (lane_idx % 4) * 2) =
                 *reinterpret_cast<float2*>(&o_frag[mma_q][mma_d][4 + j * 2]);
+
+            uint sm_id, warp_id, bidx, bidy, bidz;
+            asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+            asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+            asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+            asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+            asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+            printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), store o 128b\n",
+                sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
           }
         }
       }
