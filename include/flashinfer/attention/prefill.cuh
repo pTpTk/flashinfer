@@ -37,6 +37,9 @@
 #include "cascade.cuh"
 #include "mask.cuh"
 #include "variants.cuh"
+
+#define SM_ID 0
+
 namespace flashinfer {
 
 DEFINE_HAS_MEMBER(maybe_q_rope_offset)
@@ -1760,6 +1763,8 @@ cudaError_t SinglePrefillWithKVCacheDispatched(Params params, typename Params::D
           void* args[] = {(void*)&params};
           dim3 nblks(ceil_div(qo_len * group_size, CTA_TILE_Q), num_chunks, num_kv_heads);
           dim3 nthrs(32, NUM_WARPS_Q, NUM_WARPS_KV);
+          printf("blk dim: (%u, %u, %u), thr dim: (%u, %u, %u)\n",
+              ceil_div(qo_len * group_size, CTA_TILE_Q), num_chunks, num_kv_heads, 32, NUM_WARPS_Q, NUM_WARPS_KV);
 
           FLASHINFER_CUDA_CALL(
               cudaLaunchKernel((void*)kernel, nblks, nthrs, args, smem_size, stream));
