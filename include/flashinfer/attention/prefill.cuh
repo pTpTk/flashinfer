@@ -277,7 +277,6 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
                                            const uint32_t stride_n, const uint32_t kv_idx_base,
                                            const uint32_t kv_len, const dim3 tid = threadIdx) {
   // NOTE: for fp8, this function doesn't work for head_dim = 64 at the moment
-  printf("\nproduce_kv, produce_v = %d\n", produce_v);
   using DTypeKV = typename KTraits::DTypeKV;
   constexpr uint32_t CTA_TILE_KV = KTraits::CTA_TILE_KV;
   constexpr uint32_t NUM_WARPS = KTraits::NUM_WARPS;
@@ -320,6 +319,12 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
       *gptr += NUM_WARPS * 4 * stride_n - sizeof(DTypeKV) * NUM_MMA_D * upcast_size<DTypeKV>();
     }
     *smem_offset -= CTA_TILE_KV * UPCAST_STRIDE;
+    if(produce_v)
+      printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), end of v\n",
+        sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
+    else
+      printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), end of k\n",
+        sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
   } else {
     uint32_t kv_idx = kv_idx_base + warp_idx * 8 + lane_idx / 4;
     // NOTE: NUM_MMA_KV * 2 / NUM_WARPS_Q = NUM_WARPS_KV * NUM_MMA_KV * 2 / num_warps
