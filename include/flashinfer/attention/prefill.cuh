@@ -1698,6 +1698,7 @@ cudaError_t SinglePrefillWithKVCacheDispatched(Params params, typename Params::D
           dim3 nthrs(32, NUM_WARPS_Q, NUM_WARPS_KV);
           FLASHINFER_CUDA_CALL(
               cudaLaunchKernel((void*)kernel, nblks, nthrs, args, smem_size, stream));
+          cudaDeviceSynchronize();
         } else {
           // Use cooperative groups to increase occupancy
           params.partition_kv = true;
@@ -1712,6 +1713,7 @@ cudaError_t SinglePrefillWithKVCacheDispatched(Params params, typename Params::D
 
           FLASHINFER_CUDA_CALL(
               cudaLaunchKernel((void*)kernel, nblks, nthrs, args, smem_size, stream));
+          cudaDeviceSynchronize();
           if constexpr (AttentionVariant::use_softmax) {
             FLASHINFER_CUDA_CALL(MergeStates(tmp, tmp_lse, o, lse, num_chunks, qo_len, num_qo_heads,
                                              HEAD_DIM_VO, stream));
