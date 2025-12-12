@@ -330,6 +330,19 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
           smem.template advance_offset_by_row<NUM_WARPS * 8, UPCAST_STRIDE>(*smem_offset);
       kv_idx += NUM_WARPS * 8;
       *gptr += NUM_WARPS * 8 * stride_n;
+
+      uint sm_id, warp_id, bidx, bidy, bidz;
+      asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+      asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+      asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+      asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+      asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+      if(produce_v)
+        printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load v 128b\n",
+          sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
+      else
+        printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load k 128b\n",
+          sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
     }
     *smem_offset -= KTraits::CTA_TILE_KV * UPCAST_STRIDE;
   }
@@ -1243,6 +1256,7 @@ __device__ __forceinline__ void write_o_reg_gmem(
     typename KTraits::DTypeO* o_ptr_base, const uint32_t o_packed_idx_base,
     const uint32_t qo_upper_bound, const uint32_t o_stride_n, const uint32_t o_stride_h,
     const uint_fastdiv group_size, const dim3 tid = threadIdx) {
+  printf("here, sizeof(DTypeO) = %d\n", sizeof(DTypeO));
   using DTypeO = typename KTraits::DTypeO;
   constexpr uint32_t UPCAST_STRIDE_O = KTraits::UPCAST_STRIDE_O;
   const uint32_t warp_idx_x = get_warp_idx_q<KTraits>(tid.y);
