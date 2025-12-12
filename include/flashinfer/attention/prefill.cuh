@@ -277,6 +277,7 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
                                            const uint32_t stride_n, const uint32_t kv_idx_base,
                                            const uint32_t kv_len, const dim3 tid = threadIdx) {
   // NOTE: for fp8, this function doesn't work for head_dim = 64 at the moment
+  printf("\nproduce_kv, produce_v = %d\n", produce_v);
   using DTypeKV = typename KTraits::DTypeKV;
   constexpr uint32_t CTA_TILE_KV = KTraits::CTA_TILE_KV;
   constexpr uint32_t NUM_WARPS = KTraits::NUM_WARPS;
