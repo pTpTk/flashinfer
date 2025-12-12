@@ -315,6 +315,7 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
     asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
     asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
     asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+    if(sm_id == SM_ID)
     if(produce_v)
       printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load %u bit of v\n",
         sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count * 128);
@@ -339,6 +340,7 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
       asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
       asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
       asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+      if(sm_id == SM_ID)
       if(produce_v)
         printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load v 128b\n",
           sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
@@ -495,6 +497,7 @@ __device__ __forceinline__ void load_q_global_smem(
     asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
     asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
     asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+    if(sm_id == SM_ID)
     printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load q %u b\n",
         sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count*128);
   }
@@ -1356,6 +1359,7 @@ __device__ __forceinline__ void write_o_reg_gmem(
       asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
       asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
       asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+      if(sm_id == SM_ID)
       printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), store o %u b\n",
           sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count*128);
     }
