@@ -281,7 +281,6 @@ def run_ninja(workdir: Path, ninja_file: Path, verbose: bool) -> None:
     if num_workers is not None:
         command += ["-j", str(num_workers)]
 
-    print(command)
     sys.stdout.flush()
     sys.stderr.flush()
     try:

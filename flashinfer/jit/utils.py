@@ -31,12 +31,6 @@ def write_if_different(path: pathlib.Path, content: str) -> None:
     with open(path, "w") as f:
         f.write(content)
 
-    os.makedirs('/workspace/tmp_sources', exist_ok=True)
-    file_name = '/workspace/tmp_sources/' + path.name
-    with open(file_name, "w") as f:
-        f.write(content)
-
-
 dtype_map = {
     torch.float16: "half",
     torch.bfloat16: "nv_bfloat16",
