@@ -323,19 +323,19 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
                                          %p, %p, %p, %p,
                                          %p, %p, %p, %p,
                                          %p, %p, %p, %p\n",
-        sm_id, warp_id, addr[0] , addr[1] , addr[2] , addr[3],
-                        addr[4] , addr[5] , addr[6] , addr[7],
-                        addr[8] , addr[9] , addr[10], addr[11],
-                        addr[12], addr[13], addr[14], addr[15]);
+        sm_id, warp_id, addrs[0] , addrs[1] , addrs[2] , addrs[3],
+                        addrs[4] , addrs[5] , addrs[6] , addrs[7],
+                        addrs[8] , addrs[9] , addrs[10], addrs[11],
+                        addrs[12], addrs[13], addrs[14], addrs[15]);
     else
       printf("sm: %d, warp: %d, load k @ %p, %p, %p, %p,
                                          %p, %p, %p, %p,
                                          %p, %p, %p, %p,
                                          %p, %p, %p, %p\n",
-        sm_id, warp_id, addr[0] , addr[1] , addr[2] , addr[3],
-                        addr[4] , addr[5] , addr[6] , addr[7],
-                        addr[8] , addr[9] , addr[10], addr[11],
-                        addr[12], addr[13], addr[14], addr[15]);
+        sm_id, warp_id, addrs[0] , addrs[1] , addrs[2] , addrs[3],
+                        addrs[4] , addrs[5] , addrs[6] , addrs[7],
+                        addrs[8] , addrs[9] , addrs[10], addrs[11],
+                        addrs[12], addrs[13], addrs[14], addrs[15]);
   } else {
     uint32_t kv_idx = kv_idx_base + warp_idx * 8 + lane_idx / 4;
     // NOTE: NUM_MMA_KV * 2 / NUM_WARPS_Q = NUM_WARPS_KV * NUM_MMA_KV * 2 / num_warps
