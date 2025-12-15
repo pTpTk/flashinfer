@@ -476,7 +476,7 @@ __device__ __forceinline__ void load_q_global_smem(
   using DTypeQ = typename KTraits::DTypeQ;
   constexpr uint32_t UPCAST_STRIDE_Q = KTraits::UPCAST_STRIDE_Q;
   const uint32_t lane_idx = tid.x, warp_idx_x = get_warp_idx_q<KTraits>(tid.y);
-  DTypeQ* addrs[8];
+  long addrs[8];
   uint count = 0;
 
   if (get_warp_idx_kv<KTraits>(tid.z) == 0) {
@@ -1280,7 +1280,7 @@ __device__ __forceinline__ void write_o_reg_gmem(
   constexpr uint32_t UPCAST_STRIDE_O = KTraits::UPCAST_STRIDE_O;
   const uint32_t warp_idx_x = get_warp_idx_q<KTraits>(tid.y);
   const uint32_t lane_idx = tid.x;
-  DTypeO* addrs[4];
+  long addrs[4];
   uint count = 0;
 
   if constexpr (sizeof(DTypeO) == 4) {
