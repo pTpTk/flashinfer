@@ -289,6 +289,7 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
   constexpr uint32_t UPCAST_STRIDE =
       produce_v ? KTraits::UPCAST_STRIDE_V : KTraits::UPCAST_STRIDE_K;
   const uint32_t warp_idx = get_warp_idx<KTraits>(tid.y, tid.z), lane_idx = tid.x;
+  DTypeKV* addrs[16];
   uint count = 0;
 
   if constexpr (KTraits::SWIZZLE_MODE_KV == SwizzleMode::k128B) {
@@ -299,11 +300,12 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
     for (uint32_t i = 0; i < NUM_MMA_KV * 4 / NUM_WARPS_Q; ++i) {
 #pragma unroll
       for (uint32_t j = 0; j < NUM_MMA_D / (8 / sizeof(DTypeKV)); ++j) {
+        addrs[count] = *gptr;
+        count++;
+
         smem.template load_128b_async<fill_mode>(*smem_offset, *gptr, kv_idx < kv_len);
         *smem_offset = smem.template advance_offset_by_column<8>(*smem_offset, j);
         *gptr += 8 * upcast_size<DTypeKV>();
-
-        count++;
       }
       kv_idx += NUM_WARPS * 4;
       *smem_offset =
@@ -312,19 +314,28 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
       *gptr += NUM_WARPS * 4 * stride_n - sizeof(DTypeKV) * NUM_MMA_D * upcast_size<DTypeKV>();
     }
     *smem_offset -= CTA_TILE_KV * UPCAST_STRIDE;
-    uint sm_id, warp_id, bidx, bidy, bidz;
+    uint sm_id, warp_id;
     asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
     asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
-    asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
-    asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
-    asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
     if(sm_id == SM_ID)
     if(produce_v)
-      printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load %u bit of v\n",
-        sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count * 128);
+      printf("sm: %d, warp: %d, load v @ %p, %p, %p, %p,
+                                         %p, %p, %p, %p,
+                                         %p, %p, %p, %p,
+                                         %p, %p, %p, %p\n",
+        sm_id, warp_id, addr[0] , addr[1] , addr[2] , addr[3],
+                        addr[4] , addr[5] , addr[6] , addr[7],
+                        addr[8] , addr[9] , addr[10], addr[11],
+                        addr[12], addr[13], addr[14], addr[15]);
     else
-      printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load %u bit of k\n",
-        sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count * 128);
+      printf("sm: %d, warp: %d, load k @ %p, %p, %p, %p,
+                                         %p, %p, %p, %p,
+                                         %p, %p, %p, %p,
+                                         %p, %p, %p, %p\n",
+        sm_id, warp_id, addr[0] , addr[1] , addr[2] , addr[3],
+                        addr[4] , addr[5] , addr[6] , addr[7],
+                        addr[8] , addr[9] , addr[10], addr[11],
+                        addr[12], addr[13], addr[14], addr[15]);
   } else {
     uint32_t kv_idx = kv_idx_base + warp_idx * 8 + lane_idx / 4;
     // NOTE: NUM_MMA_KV * 2 / NUM_WARPS_Q = NUM_WARPS_KV * NUM_MMA_KV * 2 / num_warps
@@ -465,6 +476,7 @@ __device__ __forceinline__ void load_q_global_smem(
   using DTypeQ = typename KTraits::DTypeQ;
   constexpr uint32_t UPCAST_STRIDE_Q = KTraits::UPCAST_STRIDE_Q;
   const uint32_t lane_idx = tid.x, warp_idx_x = get_warp_idx_q<KTraits>(tid.y);
+  DTypeQ* addrs[8];
   uint count = 0;
 
   if (get_warp_idx_kv<KTraits>(tid.z) == 0) {
@@ -482,12 +494,13 @@ __device__ __forceinline__ void load_q_global_smem(
             q_ptr_base + q * q_stride_n + r * q_stride_h + (lane_idx % 8) * upcast_size<DTypeQ>();
 #pragma unroll
         for (uint32_t mma_do = 0; mma_do < KTraits::NUM_MMA_D_QK / 4; ++mma_do) {
+          addrs[count] = q_ptr - q_ptr_base;
+          ++count;
           // load q fragment from gmem to smem
           q_smem->template load_128b_async<SharedMemFillMode::kNoFill>(q_smem_offset_w, q_ptr,
                                                                        q_idx < qo_upper_bound);
           q_smem_offset_w = q_smem->template advance_offset_by_column<8>(q_smem_offset_w, mma_do);
           q_ptr += 8 * upcast_size<DTypeQ>();
-          ++count;
         }
         q_smem_offset_w =
             q_smem->template advance_offset_by_row<4, UPCAST_STRIDE_Q>(q_smem_offset_w) -
@@ -497,12 +510,9 @@ __device__ __forceinline__ void load_q_global_smem(
     uint sm_id, warp_id, bidx, bidy, bidz;
     asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
     asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
-    asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
-    asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
-    asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
     if(sm_id == SM_ID)
-    printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load q %u b\n",
-        sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count*128);
+    printf("sm: %d, warp: %d, load q @ %p, %p, %p, %p, %p, %p, %p, %p\n",
+        sm_id, warp_id, addrs[0], addrs[1], addrs[2], addrs[3], addrs[4], addrs[5], addrs[6], addrs[7]);
   }
 }
 
@@ -1270,6 +1280,7 @@ __device__ __forceinline__ void write_o_reg_gmem(
   constexpr uint32_t UPCAST_STRIDE_O = KTraits::UPCAST_STRIDE_O;
   const uint32_t warp_idx_x = get_warp_idx_q<KTraits>(tid.y);
   const uint32_t lane_idx = tid.x;
+  DTypeO* addrs[4];
   uint count = 0;
 
   if constexpr (sizeof(DTypeO) == 4) {
@@ -1293,10 +1304,7 @@ __device__ __forceinline__ void write_o_reg_gmem(
             uint sm_id, warp_id, bidx, bidy, bidz;
             asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
             asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
-            asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
-            asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
-            asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
-            printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), store o 128b\n",
+            printf("sm: %d, warp: %d, store o @  128b\n",
                 sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z);
           }
         }
@@ -1345,6 +1353,7 @@ __device__ __forceinline__ void write_o_reg_gmem(
           for (uint32_t mma_do = 0; mma_do < KTraits::NUM_MMA_D_VO / 4; ++mma_do) {
             if (o_idx < qo_upper_bound) {
               o_smem->store_128b(o_smem_offset_w, o_ptr);
+              addrs[count] = o_ptr - o_ptr_base;
               ++count;
             }
             o_ptr += 8 * upcast_size<DTypeO>();
@@ -1359,12 +1368,9 @@ __device__ __forceinline__ void write_o_reg_gmem(
       uint sm_id, warp_id, bidx, bidy, bidz;
       asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
       asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
-      asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
-      asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
-      asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
       if(sm_id == SM_ID)
-      printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), store o %u b\n",
-          sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count*128);
+      printf("sm: %d, warp: %d, store o @ %p, %p, %p, %p\n",
+          sm_id, warp_id, addrs[0], addrs[1], addrs[2], addrs[3]);
     }
   }
 }
@@ -1482,6 +1488,13 @@ __device__ __forceinline__ void SinglePrefillWithKVCacheDevice(
     DTypeO* o_ptr_base = partition_kv
                              ? o + chunk_idx * o_stride_n + (kv_head_idx * group_size) * o_stride_h
                              : o + (kv_head_idx * group_size) * o_stride_h;
+
+    uint sm_id, warp_id;
+    asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+    asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+    if(sm_id == SM_ID)
+    printf("sm: %d, warp: %d, q_ptr_base: %p, o_ptr_base: %p\n",
+        sm_id, warp_id, q_ptr_base, o_ptr_base);
 
     uint32_t q_smem_offset_r = qo_smem.template get_permuted_offset<UPCAST_STRIDE_Q>(
         get_warp_idx_q<KTraits>(tid.y) * NUM_MMA_Q * 16 + lane_idx % 16, lane_idx / 16);
