@@ -1489,12 +1489,13 @@ __device__ __forceinline__ void SinglePrefillWithKVCacheDevice(
                              ? o + chunk_idx * o_stride_n + (kv_head_idx * group_size) * o_stride_h
                              : o + (kv_head_idx * group_size) * o_stride_h;
 
-    uint sm_id, warp_id;
+    uint sm_id, warp_id, lane_id;
     asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
     asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
-    if(sm_id == SM_ID)
-    printf("sm: %d, warp: %d, q_ptr_base: %p, o_ptr_base: %p\n",
-        sm_id, warp_id, q_ptr_base, o_ptr_base);
+    asm volatile ("mov.u32 %0, %%laneid;" : "=r"(lane_id));
+    if(sm_id == SM_ID && warp_id == 0 && lane_id == 0)
+    printf("sm: %d, q_ptr_base: %p, o_ptr_base: %p\n",
+        sm_id, q_ptr_base, o_ptr_base);
 
     uint32_t q_smem_offset_r = qo_smem.template get_permuted_offset<UPCAST_STRIDE_Q>(
         get_warp_idx_q<KTraits>(tid.y) * NUM_MMA_Q * 16 + lane_idx % 16, lane_idx / 16);
