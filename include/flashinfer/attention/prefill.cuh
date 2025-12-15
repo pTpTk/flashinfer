@@ -319,19 +319,19 @@ __device__ __forceinline__ void produce_kv(smem_t<KTraits::SWIZZLE_MODE_KV> smem
     asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
     if(sm_id == SM_ID)
     if(produce_v)
-      printf("sm: %d, warp: %d, load v @ %p, %p, %p, %p,
-                                         %p, %p, %p, %p,
-                                         %p, %p, %p, %p,
-                                         %p, %p, %p, %p\n",
+      printf("sm: %d, warp: %d, load v @ %p, %p, %p, %p,"
+                                        "%p, %p, %p, %p,"
+                                        "%p, %p, %p, %p,"
+                                        "%p, %p, %p, %p\n",
         sm_id, warp_id, addrs[0] , addrs[1] , addrs[2] , addrs[3],
                         addrs[4] , addrs[5] , addrs[6] , addrs[7],
                         addrs[8] , addrs[9] , addrs[10], addrs[11],
                         addrs[12], addrs[13], addrs[14], addrs[15]);
     else
-      printf("sm: %d, warp: %d, load k @ %p, %p, %p, %p,
-                                         %p, %p, %p, %p,
-                                         %p, %p, %p, %p,
-                                         %p, %p, %p, %p\n",
+      printf("sm: %d, warp: %d, load k @ %p, %p, %p, %p,"
+                                        "%p, %p, %p, %p,"
+                                        "%p, %p, %p, %p,"
+                                        "%p, %p, %p, %p\n",
         sm_id, warp_id, addrs[0] , addrs[1] , addrs[2] , addrs[3],
                         addrs[4] , addrs[5] , addrs[6] , addrs[7],
                         addrs[8] , addrs[9] , addrs[10], addrs[11],
