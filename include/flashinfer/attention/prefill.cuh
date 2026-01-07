@@ -37,6 +37,9 @@
 #include "cascade.cuh"
 #include "mask.cuh"
 #include "variants.cuh"
+
+#define SM_ID 0
+
 namespace flashinfer {
 
 DEFINE_HAS_MEMBER(maybe_q_rope_offset)
