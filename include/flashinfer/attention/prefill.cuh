@@ -343,6 +343,7 @@ __device__ __forceinline__ void page_produce_kv(typename KTraits::SharedStorage*
   constexpr uint32_t UPCAST_STRIDE =
       produce_v ? KTraits::UPCAST_STRIDE_V : KTraits::UPCAST_STRIDE_K;
   if constexpr (KTraits::SWIZZLE_MODE_KV == SwizzleMode::k128B) {
+    printf("swizzle mode kv is 128B\n");
     uint32_t kv_idx = kv_idx_base + warp_idx * 4 + lane_idx / 8;
     // NOTE: NUM_MMA_KV * 4 / NUM_WARPS_Q = NUM_WARPS_KV * NUM_MMA_KV * 4 / num_warps
     static_assert(NUM_MMA_KV * 4 % NUM_WARPS_Q == 0);
@@ -362,6 +363,7 @@ __device__ __forceinline__ void page_produce_kv(typename KTraits::SharedStorage*
     }
     *smem_offset -= KTraits::CTA_TILE_KV * UPCAST_STRIDE;
   } else {
+    printf("swizzle mode kv is 64B\n");
     uint32_t kv_idx = kv_idx_base + warp_idx * 8 + lane_idx / 4;
     // NOTE: NUM_MMA_KV * 2 / NUM_WARPS_Q = NUM_WARPS_KV * NUM_MMA_KV * 2 / num_warps
     static_assert(NUM_MMA_KV * 2 % NUM_WARPS_Q == 0);
@@ -432,6 +434,7 @@ __device__ __forceinline__ void load_q_global_smem(
   using DTypeQ = typename KTraits::DTypeQ;
   constexpr uint32_t UPCAST_STRIDE_Q = KTraits::UPCAST_STRIDE_Q;
   const uint32_t lane_idx = tid.x, warp_idx_x = get_warp_idx_q<KTraits>(tid.y);
+  uint count = 0;
 
   if (get_warp_idx_kv<KTraits>(tid.z) == 0) {
     uint32_t q_smem_offset_w = q_smem->template get_permuted_offset<UPCAST_STRIDE_Q>(
@@ -453,12 +456,22 @@ __device__ __forceinline__ void load_q_global_smem(
                                                                        q_idx < qo_upper_bound);
           q_smem_offset_w = q_smem->template advance_offset_by_column<8>(q_smem_offset_w, mma_do);
           q_ptr += 8 * upcast_size<DTypeQ>();
+          ++count;
         }
         q_smem_offset_w =
             q_smem->template advance_offset_by_row<4, UPCAST_STRIDE_Q>(q_smem_offset_w) -
             2 * KTraits::NUM_MMA_D_QK;
       }
     }
+    uint sm_id, warp_id, bidx, bidy, bidz;
+    asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+    asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+    asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+    asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+    asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+    if(sm_id == SM_ID)
+    printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load q %u b\n",
+        sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count*128);
   }
 }
 
@@ -2551,7 +2564,6 @@ template <uint32_t CTA_TILE_Q, uint32_t HEAD_DIM_QK, uint32_t HEAD_DIM_VO,
 cudaError_t BatchPrefillWithPagedKVCacheDispatched(Params params, typename Params::DTypeO* tmp_v,
                                                    float* tmp_s, bool enable_pdl,
                                                    cudaStream_t stream) {
-  printf("here\n");
   using DTypeQ = typename Params::DTypeQ;
   using DTypeKV = typename Params::DTypeKV;
   using DTypeO = typename Params::DTypeO;
