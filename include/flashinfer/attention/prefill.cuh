@@ -367,12 +367,15 @@ __device__ __forceinline__ void page_produce_kv(typename KTraits::SharedStorage*
           sizeof(DType) * NUM_MMA_D;
     }
     *smem_offset -= KTraits::CTA_TILE_KV * UPCAST_STRIDE;
-    uint sm_id, warp_id, bidx, bidy, bidz;
+    uint sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz;
     asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
     asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
     asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
     asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
     asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+    asm("mov.u32 %0, %tid.x;" : "=r"(tidx));
+    asm("mov.u32 %0, %tid.y;" : "=r"(tidy));
+    asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
     if(sm_id == SM_ID)
     if(produce_v)
       printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load %u bit of v\n",
