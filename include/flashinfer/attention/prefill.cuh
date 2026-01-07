@@ -379,10 +379,10 @@ __device__ __forceinline__ void page_produce_kv(typename KTraits::SharedStorage*
     if(sm_id == SM_ID)
     if(produce_v)
       printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load %u bit of v\n",
-        sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count * 128);
+        sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz, count * 128);
     else
       printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load %u bit of k\n",
-        sm_id, warp_id, bidx, bidy, bidz, tid.x, tid.y, tid.z, count * 128);
+        sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz, count * 128);
   } else {
     printf("swizzle mode kv is 64B\n");
     uint32_t kv_idx = kv_idx_base + warp_idx * 8 + lane_idx / 4;
