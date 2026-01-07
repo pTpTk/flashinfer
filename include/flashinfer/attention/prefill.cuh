@@ -1221,7 +1221,7 @@ __device__ __forceinline__ void write_o_reg_gmem(
     float (*o_frag)[KTraits::NUM_MMA_D_VO][8], smem_t<KTraits::SWIZZLE_MODE_Q>* o_smem,
     typename KTraits::DTypeO* o_ptr_base, const uint32_t o_packed_idx_base,
     const uint32_t qo_upper_bound, const uint32_t o_stride_n, const uint32_t o_stride_h,
-    const uint_fastdiv group_size, const dim3 tid = threadIdx) {
+    const uint_fastdiv group_size, const dim3 tid = threadIdx, uint64_t* t) {
   using DTypeO = typename KTraits::DTypeO;
   constexpr uint32_t UPCAST_STRIDE_O = KTraits::UPCAST_STRIDE_O;
   const uint32_t warp_idx_x = get_warp_idx_q<KTraits>(tid.y);
@@ -1278,6 +1278,9 @@ __device__ __forceinline__ void write_o_reg_gmem(
       uint32_t o_smem_offset_w = o_smem->template get_permuted_offset<UPCAST_STRIDE_O>(
           warp_idx_x * KTraits::NUM_MMA_Q * 16 + lane_idx / 8, lane_idx % 8);
 
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+      ++t;
+
 #pragma unroll
       for (uint32_t mma_q = 0; mma_q < KTraits::NUM_MMA_Q; ++mma_q) {
 #pragma unroll
@@ -1300,6 +1303,15 @@ __device__ __forceinline__ void write_o_reg_gmem(
               2 * KTraits::NUM_MMA_D_VO;
         }
       }
+
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+      ++t;
+    }
+    else {
+      *t = 0;
+      ++t;
+      *t = 0;
+      ++t;
     }
   }
 }
@@ -2026,6 +2038,12 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     const Params params, typename KTraits::SharedStorage& smem_storage, const dim3 tid = threadIdx,
     const uint32_t bx = blockIdx.x, const uint32_t kv_head_idx = blockIdx.z,
     const uint32_t num_kv_heads = gridDim.z) {
+  
+  uint64_t times[23];
+  uint64_t* t = times;
+  asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+  ++t;
+  
   using DTypeQ = typename Params::DTypeQ;
 #if (__CUDA_ARCH__ < 800)
   if constexpr (std::is_same_v<DTypeQ, nv_bfloat16>) {
@@ -2057,7 +2075,7 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     [[maybe_unused]] constexpr uint32_t KV_THR_LAYOUT_COL = KTraits::KV_THR_LAYOUT_COL;
     [[maybe_unused]] constexpr MaskMode MASK_MODE = KTraits::MASK_MODE;
 
-    IdType* request_indices = params.request_indices;
+        IdType* request_indices = params.request_indices;
     IdType* qo_tile_indices = params.qo_tile_indices;
     IdType* kv_tile_indices = params.kv_tile_indices;
     DTypeQ* q = params.q;
@@ -2147,10 +2165,14 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     asm volatile("griddepcontrol.wait;");
 #endif
 
+    asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+    ++t;
     load_q_global_smem<KTraits>(qo_packed_idx_base, qo_upper_bound, q_ptr_base, q_stride_n,
                                 q_stride_h, group_size, &qo_smem, tid);
 
     cp_async::commit_group();
+    asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+    ++t;
 
     if constexpr (KTraits::POS_ENCODING_MODE == PosEncodingMode::kRoPELlama) {
       cp_async::wait_group<0>();
@@ -2201,12 +2223,18 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
           page_iter, kv_head_idx, entry_idx,
           (lane_idx % KV_THR_LAYOUT_COL) * upcast_size<DTypeKV>(), last_indptr);
     }
+    asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+    ++t;
     page_produce_kv<false, KTraits>(&smem_storage, &k_smem_offset_w, paged_kv.k_data, 0,
                                     thr_local_kv_offset, chunk_size, warp_idx, lane_idx);
     cp_async::commit_group();
+    asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+    ++t;
     page_produce_kv<true, KTraits>(&smem_storage, &v_smem_offset_w, paged_kv.v_data, 0,
                                    thr_local_kv_offset, chunk_size, warp_idx, lane_idx);
     cp_async::commit_group();
+    asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+    ++t;
 
     uint32_t num_iterations_prefix;
     uint32_t num_iterations_mask;
@@ -2337,10 +2365,14 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
       update_mdo_states<KTraits>(variant, s_frag, o_frag, m, d);
 
       block.sync();
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+      ++t;
       page_produce_kv<false, KTraits>(&smem_storage, &k_smem_offset_w, paged_kv.k_data,
                                       (iter + 1) * CTA_TILE_KV, thr_local_kv_offset, chunk_size,
                                       warp_idx, lane_idx);
       cp_async::commit_group();
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+      ++t;
       cp_async::wait_group<1>();
       block.sync();
 
@@ -2348,10 +2380,14 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
       compute_sfm_v<KTraits>(&v_smem, &v_smem_offset_r, s_frag, o_frag, d);
 
       block.sync();
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+      ++t;
       page_produce_kv<true, KTraits>(&smem_storage, &v_smem_offset_w, paged_kv.v_data,
                                      (iter + 1) * CTA_TILE_KV, thr_local_kv_offset, chunk_size,
                                      warp_idx, lane_idx);
       cp_async::commit_group();
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+      ++t;
     }
     cp_async::wait_group<0>();
     block.sync();
@@ -2377,6 +2413,8 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
 
     // write lse
     if constexpr (variant.use_softmax) {
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+      ++t;
       if (lse != nullptr) {
         if (get_warp_idx_kv<KTraits>(tid.z) == 0) {
 #pragma unroll
@@ -2401,7 +2439,14 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
           }
         }
       }
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
+      ++t;
     }
+
+    for (int i = 0; i < 22; ++i) {
+        printf("%ld   ", timers[i]);
+    }
+    printf("\n");
 
 #if (__CUDACC_VER_MAJOR__ >= 12 && defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 900))
     asm volatile("griddepcontrol.launch_dependents;");
