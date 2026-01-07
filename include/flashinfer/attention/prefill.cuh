@@ -378,10 +378,10 @@ __device__ __forceinline__ void page_produce_kv(typename KTraits::SharedStorage*
     asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
     if(sm_id == SM_ID)
     if(produce_v)
-      printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load %u bit of v\n",
+      printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load v %u b\n",
         sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz, count * 128);
     else
-      printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load %u bit of k\n",
+      printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), load k %u b\n",
         sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz, count * 128);
   } else {
     printf("swizzle mode kv is 64B\n");
@@ -2426,7 +2426,7 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     if constexpr (variant.use_softmax) {
       if (lse != nullptr) {
         if (get_warp_idx_kv<KTraits>(tid.z) == 0) {
-          printf("here\n");
+          uint count = 0;
 #pragma unroll
           for (uint32_t mma_q = 0; mma_q < NUM_MMA_Q; ++mma_q) {
 #pragma unroll
@@ -2440,13 +2440,30 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
                   lse[(o_indptr[request_idx] + qo_idx * num_kv_chunks + kv_tile_idx) *
                           num_qo_heads +
                       qo_head_idx] = math::ptx_log2(d[mma_q][j]) + float(m[mma_q][j]);
+
+                  ++count;
                 } else {
                   lse[(o_indptr[request_idx] + qo_idx) * num_qo_heads + qo_head_idx] =
                       math::ptx_log2(d[mma_q][j]) + float(m[mma_q][j]);
+                  
+                  ++count;
                 }
               }
             }
           }
+
+          uint sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz;
+          asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+          asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+          asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+          asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+          asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+          asm("mov.u32 %0, %tid.x;" : "=r"(tidx));
+          asm("mov.u32 %0, %tid.y;" : "=r"(tidy));
+          asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
+          if(sm_id == SM_ID)
+            printf("sm: %d, warp_id: %d, block (%d, %d, %d), thread (%d, %d, %d), write lse %u b\n",
+              sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz, count * 32);
         }
       }
     }
