@@ -1221,7 +1221,7 @@ __device__ __forceinline__ void write_o_reg_gmem(
     float (*o_frag)[KTraits::NUM_MMA_D_VO][8], smem_t<KTraits::SWIZZLE_MODE_Q>* o_smem,
     typename KTraits::DTypeO* o_ptr_base, const uint32_t o_packed_idx_base,
     const uint32_t qo_upper_bound, const uint32_t o_stride_n, const uint32_t o_stride_h,
-    const uint_fastdiv group_size, const dim3 tid = threadIdx, uint64_t* t) {
+    const uint_fastdiv group_size, const dim3 tid = threadIdx, uint64_t** t = nullptr) {
   using DTypeO = typename KTraits::DTypeO;
   constexpr uint32_t UPCAST_STRIDE_O = KTraits::UPCAST_STRIDE_O;
   const uint32_t warp_idx_x = get_warp_idx_q<KTraits>(tid.y);
@@ -1278,8 +1278,8 @@ __device__ __forceinline__ void write_o_reg_gmem(
       uint32_t o_smem_offset_w = o_smem->template get_permuted_offset<UPCAST_STRIDE_O>(
           warp_idx_x * KTraits::NUM_MMA_Q * 16 + lane_idx / 8, lane_idx % 8);
 
-      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
-      ++t;
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(**t) :: "memory");
+      ++(*t);
 
 #pragma unroll
       for (uint32_t mma_q = 0; mma_q < KTraits::NUM_MMA_Q; ++mma_q) {
@@ -1304,8 +1304,8 @@ __device__ __forceinline__ void write_o_reg_gmem(
         }
       }
 
-      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(*t) :: "memory");
-      ++t;
+      asm volatile ("mov.u64 %0, %%globaltimer;" : "=l"(**t) :: "memory");
+      ++(*t);
     }
     else {
       *t = 0;
@@ -2409,7 +2409,7 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     write_o_reg_gmem<KTraits>(o_frag, &qo_smem, o_ptr_base, qo_packed_idx_base, qo_len,
                               /*o_stride_n=*/
                               partition_kv ? num_kv_chunks * o_stride_n : o_stride_n,
-                              /*o_stride_h=*/o_stride_h, group_size, tid);
+                              /*o_stride_h=*/o_stride_h, group_size, tid, &t);
 
     // write lse
     if constexpr (variant.use_softmax) {
