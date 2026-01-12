@@ -2054,33 +2054,6 @@ __device__ __forceinline__ int mini_itoa(long value, char* out) {
   return j;
 }
 
-__device__ __forceinline__ int mini_sprintf(char* buf, const char* fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  int pos = 0;
-  for (int i = 0; fmt[i] != '\0'; ++i) {
-    if (fmt[i] == '%') {
-      ++i;
-      if (fmt[i] == 'd') {
-        int v = va_arg(args, int);
-        pos += mini_itoa((long)v, buf + pos);
-      } else if (fmt[i] == 'l' && fmt[i + 1] == 'd') {
-        ++i;  // skip 'd'
-        long v = va_arg(args, long);
-        pos += mini_itoa(v, buf + pos);
-      } else {  // unsupported specifier, copy literally
-        buf[pos++] = '%';
-        buf[pos++] = fmt[i];
-      }
-    } else {
-      buf[pos++] = fmt[i];
-    }
-  }
-  buf[pos] = '\0';
-  va_end(args);
-  return pos;
-}
-
 template <typename KTraits, typename Params>
 __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     const Params params, typename KTraits::SharedStorage& smem_storage, const dim3 tid = threadIdx,
@@ -2503,11 +2476,23 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     asm("mov.u32 %0, %tid.y;" : "=r"(tidy));
     asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
     if(tidx == 0) {
-      char buf[1024];
-      int offset = 0;
-      offset += mini_sprintf(buf + offset, "sm: %d, warp_id: %d ", sm_id, warp_id);
+      char buf[1024] = "sm: ";
+      int pos = 4;
+      pos += mini_itoa(sm_id, buf+pos);
+      buf[pos++] = ' ';
+      buf[pos++] = 'w';
+      buf[pos++] = 'a';
+      buf[pos++] = 'r';
+      buf[pos++] = 'p';
+      buf[pos++] = ':';
+      buf[pos++] = ' ';
+      pos += mini_itoa(sm_id, buf+pos);
+      buf[pos++] = ' ';
+      buf[pos++] = ' ';
       for (int i = 0; i < 22; ++i) {
-        offset += mini_sprintf(buf + offset, "%ld   ", times[i]);
+        pos += mini_itoa(times[i], buf+pos);
+        buf[pos++] = ' ';
+        buf[pos++] = ' ';
       }
       printf("%s\n", buf);
     }
