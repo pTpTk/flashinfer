@@ -39,7 +39,7 @@
 #include "variants.cuh"
 
 #define SM_MIN 0
-#define SM_MAX 10
+#define SM_MAX 54
 
 namespace flashinfer {
 
@@ -2476,7 +2476,7 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     asm("mov.u32 %0, %tid.y;" : "=r"(tidy));
     asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
     if(SM_MIN < sm_id && sm_id < SM_MAX && tidx == 0) {
-      char buf[1024] = "sm: ";
+      char buf[5000] = "sm: ";
       int pos = 4;
       pos += mini_itoa(sm_id, buf+pos);
       buf[pos++] = ' ';
