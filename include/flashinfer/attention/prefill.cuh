@@ -2037,6 +2037,50 @@ __global__ __launch_bounds__(KTraits::NUM_THREADS) void BatchPrefillWithRaggedKV
 #endif
 }
 
+__device__ __forceinline__ int mini_itoa(long value, char* out) {
+  char tmp[32];
+  int i = 0, j = 0;
+  bool neg = value < 0;
+  if (neg) value = -value;  // convert digits in reverse
+  do {
+    tmp[i++] = '0' + (value % 10);
+    value /= 10;
+  } while (value);
+  if (neg) tmp[i++] = '-';  // reverse into output
+  while (i > 0) {
+    out[j++] = tmp[--i];
+  }
+  out[j] = '\0';
+  return j;
+}
+
+__device__ __forceinline__ int mini_sprintf(char* buf, const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int pos = 0;
+  for (int i = 0; fmt[i] != '\0'; ++i) {
+    if (fmt[i] == '%') {
+      ++i;
+      if (fmt[i] == 'd') {
+        int v = va_arg(args, int);
+        pos += mini_itoa((long)v, buf + pos);
+      } else if (fmt[i] == 'l' && fmt[i + 1] == 'd') {
+        ++i;  // skip 'd'
+        long v = va_arg(args, long);
+        pos += mini_itoa(v, buf + pos);
+      } else {  // unsupported specifier, copy literally
+        buf[pos++] = '%';
+        buf[pos++] = fmt[i];
+      }
+    } else {
+      buf[pos++] = fmt[i];
+    }
+  }
+  buf[pos] = '\0';
+  va_end(args);
+  return pos;
+}
+
 template <typename KTraits, typename Params>
 __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     const Params params, typename KTraits::SharedStorage& smem_storage, const dim3 tid = threadIdx,
@@ -2447,6 +2491,8 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
       ++t;
     }
 
+    __syncthreads();
+
     uint sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz;
     asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
     asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
@@ -2459,9 +2505,9 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     if(tidx == 0) {
       char buf[1024];
       int offset = 0;
-      offset += snprintf(buf + offset, sizeof(buf) - offset, "sm: %d, warp_id: %d", sm_id, warp_id);
+      offset += mini_sprintf(buf + offset, "sm: %d, warp_id: %d ", sm_id, warp_id);
       for (int i = 0; i < 22; ++i) {
-        offset += snprintf(buf + offset, sizeof(buf) - offset, "%ld   ", times[i]);
+        offset += mini_sprintf(buf + offset, "%ld   ", times[i]);
       }
       printf("%s\n", buf);
     }
