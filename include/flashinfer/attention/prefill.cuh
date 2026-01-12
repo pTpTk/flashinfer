@@ -2476,8 +2476,12 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     asm("mov.u32 %0, %tid.y;" : "=r"(tidy));
     asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
     if(SM_MIN < sm_id && sm_id < SM_MAX && tidx == 0) {
-      char buf[5000] = "sm: ";
-      int pos = 4;
+      char buf[5000];
+      int pos = 0;
+      buf[pos++] = 's';
+      buf[pos++] = 'm';
+      buf[pos++] = ':';
+      buf[pos++] = ' ';
       pos += mini_itoa(sm_id, buf+pos);
       buf[pos++] = ' ';
       buf[pos++] = 'w';
