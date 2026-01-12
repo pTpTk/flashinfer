@@ -37,6 +37,10 @@
 #include "cascade.cuh"
 #include "mask.cuh"
 #include "variants.cuh"
+
+#define SM_MIN 0
+#define SM_MAX 54
+
 namespace flashinfer {
 
 DEFINE_HAS_MEMBER(maybe_q_rope_offset)
@@ -2443,10 +2447,24 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
       ++t;
     }
 
-    for (int i = 0; i < 22; ++i) {
-        printf("%ld   ", times[i]);
+    uint sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz;
+    asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+    asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+    asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+    asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+    asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+    asm("mov.u32 %0, %tid.x;" : "=r"(tidx));
+    asm("mov.u32 %0, %tid.y;" : "=r"(tidy));
+    asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
+    if(tidx == 0) {
+      char buf[1024];
+      int offset = 0;
+      offset += snprintf(buf + offset, sizeof(buf) - offset, "sm: %d, warp_id: %d", sm_id, warp_id);
+      for (int i = 0; i < 22; ++i) {
+        offset += snprintf(buf + offset, sizeof(buf) - offset, "%ld   ", times[i]);
+      }
+      printf("%s\n", buf);
     }
-    printf("\n");
 
 #if (__CUDACC_VER_MAJOR__ >= 12 && defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 900))
     asm volatile("griddepcontrol.launch_dependents;");
