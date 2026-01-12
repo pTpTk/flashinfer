@@ -2444,7 +2444,7 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     }
 
     for (int i = 0; i < 22; ++i) {
-        printf("%ld   ", timers[i]);
+        printf("%ld   ", times[i]);
     }
     printf("\n");
 
