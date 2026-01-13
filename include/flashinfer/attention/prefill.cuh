@@ -38,9 +38,6 @@
 #include "mask.cuh"
 #include "variants.cuh"
 
-#define SM_MIN 0
-#define SM_MAX 54
-
 namespace flashinfer {
 
 DEFINE_HAS_MEMBER(maybe_q_rope_offset)
@@ -2475,7 +2472,7 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
     asm("mov.u32 %0, %tid.x;" : "=r"(tidx));
     asm("mov.u32 %0, %tid.y;" : "=r"(tidy));
     asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
-    if(SM_MIN < sm_id && sm_id < SM_MAX && tidx == 0) {
+    if(tidx == 0) {
       char buf[5000];
       int pos = 0;
       buf[pos++] = 's';
