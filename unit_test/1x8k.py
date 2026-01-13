@@ -11,14 +11,14 @@ workspace_buffer = torch.zeros(128 * 1024 * 1024, dtype=torch.uint8, device="cud
 decode_wrapper = flashinfer.BatchDecodeWithPagedKVCacheWrapper(
     workspace_buffer, "NHD", use_tensor_cores=True
 )
-batch_size = 8
+batch_size = 1
 kv_page_indices = torch.arange(max_num_pages).int().to("cuda:0")
 kv_page_indptr = torch.tensor(
-    [0, 66, 129, 193, 255, 322, 387, 447, 512], dtype=torch.int32, device="cuda:0"
+    [0, 512], dtype=torch.int32, device="cuda:0"
 )
 # 1 <= kv_last_page_len <= page_size
 kv_last_page_len = torch.tensor(
-    [1, 7, 14, 4, 3, 1, 12, 5], dtype=torch.int32, device="cuda:0"
+    [16], dtype=torch.int32, device="cuda:0"
 )
 kv_cache_at_layer = [
     torch.randn(
