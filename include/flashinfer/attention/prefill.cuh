@@ -2466,40 +2466,40 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
 
     __syncthreads();
 
-    // uint sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz;
-    // asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
-    // asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
-    // asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
-    // asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
-    // asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
-    // asm("mov.u32 %0, %tid.x;" : "=r"(tidx));
-    // asm("mov.u32 %0, %tid.y;" : "=r"(tidy));
-    // asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
-    // if(SM_MIN < sm_id && sm_id < SM_MAX && tidx == 0) {
-    //   char buf[5000];
-    //   int pos = 0;
-    //   buf[pos++] = 's';
-    //   buf[pos++] = 'm';
-    //   buf[pos++] = ':';
-    //   buf[pos++] = ' ';
-    //   pos += mini_itoa(sm_id, buf+pos);
-    //   buf[pos++] = ' ';
-    //   buf[pos++] = 'w';
-    //   buf[pos++] = 'a';
-    //   buf[pos++] = 'r';
-    //   buf[pos++] = 'p';
-    //   buf[pos++] = ':';
-    //   buf[pos++] = ' ';
-    //   pos += mini_itoa(sm_id, buf+pos);
-    //   buf[pos++] = ' ';
-    //   buf[pos++] = ' ';
-    //   for (int i = 0; i < 22; ++i) {
-    //     pos += mini_itoa(times[i], buf+pos);
-    //     buf[pos++] = ' ';
-    //     buf[pos++] = ' ';
-    //   }
-    //   printf("%s\n", buf);
-    // }
+    uint sm_id, warp_id, bidx, bidy, bidz, tidx, tidy, tidz;
+    asm volatile ("mov.u32 %0, %smid;" : "=r"(sm_id));
+    asm volatile ("mov.u32 %0, %warpid;" : "=r"(warp_id));
+    asm("mov.u32 %0, %ctaid.x;" : "=r"(bidx));
+    asm("mov.u32 %0, %ctaid.y;" : "=r"(bidy));
+    asm("mov.u32 %0, %ctaid.z;" : "=r"(bidz));
+    asm("mov.u32 %0, %tid.x;" : "=r"(tidx));
+    asm("mov.u32 %0, %tid.y;" : "=r"(tidy));
+    asm("mov.u32 %0, %tid.z;" : "=r"(tidz));
+    if(SM_MIN < sm_id && sm_id < SM_MAX && tidx == 0) {
+      char buf[5000];
+      int pos = 0;
+      buf[pos++] = 's';
+      buf[pos++] = 'm';
+      buf[pos++] = ':';
+      buf[pos++] = ' ';
+      pos += mini_itoa(sm_id, buf+pos);
+      buf[pos++] = ' ';
+      buf[pos++] = 'w';
+      buf[pos++] = 'a';
+      buf[pos++] = 'r';
+      buf[pos++] = 'p';
+      buf[pos++] = ':';
+      buf[pos++] = ' ';
+      pos += mini_itoa(sm_id, buf+pos);
+      buf[pos++] = ' ';
+      buf[pos++] = ' ';
+      for (int i = 0; i < 22; ++i) {
+        pos += mini_itoa(times[i], buf+pos);
+        buf[pos++] = ' ';
+        buf[pos++] = ' ';
+      }
+      printf("%s\n", buf);
+    }
 
 #if (__CUDACC_VER_MAJOR__ >= 12 && defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 900))
     asm volatile("griddepcontrol.launch_dependents;");
