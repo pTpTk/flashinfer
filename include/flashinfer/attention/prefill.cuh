@@ -2720,6 +2720,7 @@ cudaError_t BatchPrefillWithPagedKVCacheDispatched(Params params, typename Param
           FLASHINFER_CUDA_CALL(
               cudaLaunchKernel((void*)kernel, nblks, nthrs, args, smem_size, stream));
         }
+        cudaDeviceSynchronize();
         if constexpr (AttentionVariant::use_softmax) {
           FLASHINFER_CUDA_CALL(VariableLengthMergeStates(
               tmp_v, tmp_s, params.merge_indptr, o, lse, params.max_total_num_rows,
