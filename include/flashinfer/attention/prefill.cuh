@@ -2487,7 +2487,7 @@ __device__ __forceinline__ void BatchPrefillWithPagedKVCacheDevice(
       buf[pos++] = 'p';
       buf[pos++] = ':';
       buf[pos++] = ' ';
-      pos += mini_itoa(sm_id, buf+pos);
+      pos += mini_itoa(warp_id, buf+pos);
       buf[pos++] = ' ';
       buf[pos++] = ' ';
       for (int i = 0; i < 22; ++i) {
